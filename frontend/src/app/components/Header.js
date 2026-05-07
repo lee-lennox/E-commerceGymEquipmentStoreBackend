@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Bell, ShoppingCart, Settings, User as UserIcon, ChevronDown, Menu, X, Sun, Moon } from 'lucide-react';
+import { Search, Bell, ShoppingCart, Settings, ChevronDown, Menu, X, Sun, Moon } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useState, useEffect, useRef } from 'react';
 

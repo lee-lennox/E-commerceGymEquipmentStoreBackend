@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getCategories, Category, deleteCategory } from '../../services/api';
+import { getCategories, deleteCategory } from '../../services/api';
 import { Loader2, Plus, Trash2, ArrowLeft, Tag } from 'lucide-react';
 
 export function AdminCategoriesPage() {

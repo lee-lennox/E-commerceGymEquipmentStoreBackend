@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getProducts, getCategories, searchProducts } from '../../services/api';
 import { ProductCard } from '../components/ProductCard';
-import { Loader2, Filter, Grid, List, ChevronDown, SlidersHorizontal } from 'lucide-react';
+import { Filter, Grid, List, ChevronDown, SlidersHorizontal } from 'lucide-react';
 
 export function ProductListPage() {
   const [products, setProducts] = useState([]);

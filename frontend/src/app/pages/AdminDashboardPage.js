@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getProducts, Product, deleteProduct } from '../../services/api';
+import { getProducts, deleteProduct } from '../../services/api';
 import { Loader2, Plus, Trash2, Users, Tag, Package } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard';
 

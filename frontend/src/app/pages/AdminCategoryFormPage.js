@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getCategoryById, createCategory, updateCategory, Category } from '../../services/api';
+import { getCategoryById, createCategory, updateCategory } from '../../services/api';
 import { Loader2, ArrowLeft } from 'lucide-react';
 
 export function AdminCategoryFormPage() {
@@ -52,7 +52,7 @@ export function AdminCategoryFormPage() {
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
     setError(null);

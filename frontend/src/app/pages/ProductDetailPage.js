@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getProductById, API_ORIGIN } from '../../services/api';
-import { Loader2, ArrowLeft, ShoppingCart, Star, Heart, Share2, Truck, Shield, RotateCcw, Check, Minus, Plus, ZoomIn } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Star, Heart, Share2, Truck, Shield, RotateCcw, Check, Minus, Plus, ZoomIn } from 'lucide-react';
 import { ImageWithFallback } from '../components/imagefullbackk/ImageWithFallback';
 import { useCart } from '../context/CartContext';
 

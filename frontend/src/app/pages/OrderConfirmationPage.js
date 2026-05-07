@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useCart } from '../context/CartContext';
 import { CheckCircle, Package, Mail, Home } from 'lucide-react';
 import { API_ORIGIN } from '../../services/api';
 import { ImageWithFallback } from '../components/imagefullbackk/ImageWithFallback';
