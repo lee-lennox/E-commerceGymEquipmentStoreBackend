@@ -7,6 +7,7 @@ import za.ac.youthVend.domain.enums.UserRole;
 import za.ac.youthVend.dto.*;
 import za.ac.youthVend.repository.UserRepository;
 import za.ac.youthVend.security.JwtUtil;
+import za.ac.youthVend.service.OtpService;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -19,74 +20,174 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final EmailService emailService;
+    private final OtpService otpService;
 
     public AuthService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
                        JwtUtil jwtUtil,
-                       EmailService emailService) {
+                       EmailService emailService,
+                       OtpService otpService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.emailService = emailService;
+        this.otpService = otpService;
     }
 
     public AuthResponse register(RegisterRequest request) {
+        System.out.println("[AuthService] Registration attempt for email: " + request.getEmail());
+        
+        // Validate password
+        String passwordError = validatePassword(request.getPassword());
+        if (passwordError != null) {
+            return AuthResponse.builder()
+                    .message(passwordError)
+                    .build();
+        }
+
         // Check if email already exists
-        if (userRepository.existsByEmail(request.getEmail())) {
+        boolean emailExists = userRepository.existsByEmail(request.getEmail());
+        System.out.println("[AuthService] Email exists check: " + emailExists);
+        
+        if (emailExists) {
+            // Get more details about the existing user
+            userRepository.findByEmail(request.getEmail()).ifPresent(user -> {
+                System.out.println("[AuthService] Existing user found - id: " + user.getUserId() + 
+                    ", emailVerified: " + user.getEmailVerified() + 
+                    ", enabled: " + user.getEnabled() +
+                    ", createdAt: " + user.getCreatedAt());
+            });
+            
             return AuthResponse.builder()
                     .message("Email already registered")
                     .build();
         }
 
-        // Create new user
-        User user = User.builder()
-                .username(request.getName())
+        // Store registration data and send OTP (user not created yet)
+        otpService.createOtpWithRegistrationData(
+                request.getEmail(),
+                request.getName(),
+                request.getPassword(),
+                request.getPhone()
+        );
+
+        return AuthResponse.builder()
                 .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .phone(request.getPhone())
+                .name(request.getName())
+                .message("Please verify your email with the OTP sent to your email address.")
+                .build();
+    }
+
+    private String validatePassword(String password) {
+        if (password == null || password.length() < 6) {
+            return "Password must be at least 6 characters long";
+        }
+        // Check for at least one special character
+        if (!password.matches(".*[!@#$%^&*(),.?\":{}|<>].*")) {
+            return "Password must contain at least one special character (!@#$%^&*(),.?\":{}|<>)";
+        }
+        return null;
+    }
+
+    public AuthResponse verifyOtp(OtpVerificationRequest request) {
+        // Verify OTP
+        boolean verified = otpService.verifyOtp(request.getEmail(), request.getOtp());
+
+        if (!verified) {
+            return AuthResponse.builder()
+                    .message("Invalid or expired OTP")
+                    .build();
+        }
+
+        // Get pending registration data
+        OtpService.PendingRegistration pending = otpService.getPendingRegistration(request.getEmail());
+        if (pending == null) {
+            return AuthResponse.builder()
+                    .message("Registration data not found or expired. Please register again.")
+                    .build();
+        }
+
+        // Create the user now
+        User user = User.builder()
+                .username(pending.getName())
+                .email(request.getEmail())
+                .password(passwordEncoder.encode(pending.getPassword()))
+                .phone(pending.getPhone())
                 .role(UserRole.BUYER)
                 .enabled(true)
+                .emailVerified(true)
                 .createdAt(LocalDateTime.now())
                 .build();
 
         User savedUser = userRepository.save(user);
 
-        // Generate JWT token
-        String token = jwtUtil.generateToken(savedUser.getEmail(), savedUser.getRole().name());
+        // Clean up pending registration
+        otpService.removePendingRegistration(request.getEmail());
 
-        // Send welcome email (async - non-blocking)
-        try {
-            emailService.sendWelcomeEmail(savedUser.getEmail(), savedUser.getUsername());
-        } catch (Exception e) {
-            // Log error but don't fail registration
-            System.err.println("Failed to send welcome email to " + savedUser.getEmail() + ": " + e.getMessage());
-        }
+        // Generate JWT token
+        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
 
         return AuthResponse.builder()
                 .token(token)
-                .email(savedUser.getEmail())
-                .name(savedUser.getUsername())
-                .role(savedUser.getRole())
-                .userId(savedUser.getUserId())
-                .message("Registration successful")
+                .email(user.getEmail())
+                .name(user.getUsername())
+                .role(user.getRole())
+                .userId(user.getUserId())
+                .message("Email verified successfully. Account created.")
+                .build();
+    }
+
+    public AuthResponse resendOtp(String email) {
+        // Check if email already exists (user already registered)
+        if (userRepository.existsByEmail(email)) {
+            Optional<User> userOpt = userRepository.findByEmail(email);
+            if (userOpt.isPresent() && userOpt.get().getEmailVerified()) {
+                return AuthResponse.builder()
+                        .message("Email already verified")
+                        .build();
+            }
+        }
+
+        // Generate and resend OTP
+        otpService.createOtp(email);
+
+        return AuthResponse.builder()
+                .message("OTP resent successfully")
                 .build();
     }
 
     public AuthResponse login(LoginRequest request) {
+        System.out.println("[AuthService] Login attempt for email: " + request.getEmail());
+        
         Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
 
         if (userOpt.isEmpty()) {
+            System.out.println("[AuthService] User not found for email: " + request.getEmail());
             return AuthResponse.builder()
                     .message("Invalid email or password")
                     .build();
         }
 
         User user = userOpt.get();
+        System.out.println("[AuthService] User found - id: " + user.getUserId() + 
+            ", emailVerified: " + user.getEmailVerified() + 
+            ", enabled: " + user.getEnabled());
 
         // Verify password
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+        boolean passwordMatches = passwordEncoder.matches(request.getPassword(), user.getPassword());
+        System.out.println("[AuthService] Password matches: " + passwordMatches);
+        
+        if (!passwordMatches) {
             return AuthResponse.builder()
                     .message("Invalid email or password")
+                    .build();
+        }
+
+        // Check if email is verified
+        if (!user.getEmailVerified()) {
+            System.out.println("[AuthService] Email not verified for user: " + user.getEmail());
+            return AuthResponse.builder()
+                    .message("Please verify your email before logging in. Check your inbox for the verification code.")
                     .build();
         }
 

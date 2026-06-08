@@ -31,7 +31,7 @@ public class OrderFactory {
 
         return Order.builder()
                 .user(user)
-                .items(items)
+                .orderItems(items)
                 .totalAmount(totalAmount)
                 .status(status)
                 .build();
@@ -50,7 +50,7 @@ public class OrderFactory {
 
         return Order.builder()
                 .user(user)
-                .items(items)
+                .orderItems(items)
                 .totalAmount(totalAmount)
                 .shippingAddress(shippingAddress)
                 .status(status)

@@ -1,14 +1,15 @@
 import axios from 'axios';
 
-// Local development and hosted fallback APIs
-const DEV_LOCAL_BASE = 'http://localhost:8080/api';
-const FALLBACK_BASE = 'https://gymstore-5ni9.onrender.com/api';
+// API Configuration - Use production backend by default
+// Note: Backend has context-path=/api, so we use the Render URL as the base
+const PRODUCTION_API_BASE = 'https://gymstore-5ni9.onrender.com/api';
+const LOCAL_API_BASE = 'http://localhost:8080/api';
 
-// Normalize API base URL from env (defensive: handles missing protocol, ":8080" values, and adds /api when appropriate)
-const rawApiUrl = process.env.REACT_APP_API_URL || process.env.VITE_API_URL || FALLBACK_BASE;
+// Check for environment variable override, otherwise use local
+const rawApiUrl = process.env.REACT_APP_API_URL || process.env.VITE_API_URL;
 
 function normalizeApiBase(url) {
-  if (!url) return FALLBACK_BASE;
+  if (!url) return LOCAL_API_BASE;
   let u = String(url).trim();
   try {
     // If starts with colon like ":8080" — make it explicit using localhost
@@ -30,26 +31,11 @@ function normalizeApiBase(url) {
     }
     return u;
   } catch (e) {
-    return FALLBACK_BASE;
+    return LOCAL_API_BASE;
   }
 }
 
-function resolveApiBase(raw) {
-  // If an explicit env URL is provided, use it
-  if (raw) return normalizeApiBase(raw);
-  // Prefer local backend during development for testing
-  try {
-    if (process.env.NODE_ENV !== 'production') {
-      return DEV_LOCAL_BASE;
-    }
-  } catch (e) {
-    // ignore
-  }
-  // Fallback to hosted API
-  return FALLBACK_BASE;
-}
-
-const API_BASE = resolveApiBase(rawApiUrl);
+const API_BASE = rawApiUrl ? normalizeApiBase(rawApiUrl) : PRODUCTION_API_BASE;
 
 // API origin (without the `/api` suffix) — useful for image/static file URLs
 export const API_ORIGIN = API_BASE.replace(/\/api\/?$/i, '');
@@ -77,28 +63,8 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// If a network error occurs (e.g. local backend not running), automatically
-// switch to the hosted fallback and retry the request once. This avoids
-// repeated `ERR_CONNECTION_REFUSED` errors in the browser during development.
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    try {
-      const config = error.config || {};
-      // Only attempt one retry to avoid infinite loops
-      if (!config.__isRetry && !error.response) {
-        config.__isRetry = true;
-        api.defaults.baseURL = FALLBACK_BASE;
-        config.baseURL = FALLBACK_BASE;
-        console.warn('[api] Network error detected — switching to fallback API:', FALLBACK_BASE);
-        return api.request(config);
-      }
-    } catch (e) {
-      // ignore and fallthrough to reject
-    }
-    return Promise.reject(error);
-  }
-);
+// Note: If the local backend is not running, you'll see connection refused errors.
+// Start the backend with: cd Backend && mvn spring-boot:run
 
 // Categories
 export const getCategories = async () => {
@@ -128,7 +94,7 @@ export const getProducts = async (params = {}) => {
 // Search products by query
 export const searchProducts = async (query) => {
   try {
-    const response = await api.get('/products/search', { params: { q: query } });
+    const response = await api.get('/products/search', { params: { keyword: query } });
     return response.data;
   } catch (error) {
     console.error('Failed to search products:', error);
@@ -301,32 +267,69 @@ export const getCategoryBySlug = async (slug) => {
 // Authentication
 export const registerUser = async (name, email, phone, password) => {
   try {
-    const response = await api.post('/users/register', { name, email, phone, password });
+    // Clear any stored user data to prevent stale tokens
+    localStorage.removeItem('user');
+    
+    // Create a separate axios instance without auth interceptor for public endpoints
+    const publicApi = axios.create({
+      baseURL: API_BASE,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const response = await publicApi.post('/users/register', { name, email, phone, password });
     return response.data;
   } catch (error) {
+    // Log the full error for debugging
+    console.error('[registerUser] Error:', error.response?.status, error.response?.data);
+    
+    // Get the error message from the backend response
+    const backendMessage = error.response?.data?.message || error.response?.data?.error;
+    
     if (error.response?.status === 409) {
-      throw new Error('Email already registered');
+      // Use backend message if available, otherwise use default
+      throw new Error(backendMessage || 'Email already registered');
     }
-    throw new Error(error.response?.data?.message || 'Registration failed');
+    if (error.response?.status === 403) {
+      throw new Error(backendMessage || 'Access denied. Please check your permissions.');
+    }
+    if (error.response?.status === 400) {
+      throw new Error(backendMessage || 'Invalid registration data');
+    }
+    if (error.response?.status === 500) {
+      throw new Error('Server error. Please try again later.');
+    }
+    throw new Error(backendMessage || 'Registration failed. Please try again.');
   }
 };
 
+// Helper function for public API calls (no auth header)
+const publicApi = axios.create({
+  baseURL: API_BASE,
+  headers: { 'Content-Type': 'application/json' },
+});
+
 export const loginUser = async (email, password) => {
   try {
-    const response = await api.post('/users/login', { email, password });
+    const response = await publicApi.post('/users/login', { email, password });
     return response.data;
   } catch (error) {
+    // Get the error message from the backend response
+    const backendMessage = error.response?.data?.message || error.response?.data?.error;
+    
     if (error.response?.status === 401) {
-      throw new Error('Invalid credentials');
+      // Use backend message if available - it might contain specific info like "Please verify your email"
+      throw new Error(backendMessage || 'Invalid email or password');
     }
-    throw new Error(error.response?.data?.message || 'Login failed');
+    if (error.response?.status === 400) {
+      throw new Error(backendMessage || 'Invalid login data');
+    }
+    throw new Error(backendMessage || 'Login failed');
   }
 };
 
 // Password reset: request a reset token to be emailed
 export const requestPasswordReset = async (email) => {
   try {
-    const response = await api.post('/users/forgot-password', { email });
+    const response = await publicApi.post('/users/forgot-password', { email });
     return response.data;
   } catch (error) {
     throw new Error(error.response?.data?.message || 'Failed to request password reset');
@@ -336,7 +339,7 @@ export const requestPasswordReset = async (email) => {
 // Reset password using token and new password
 export const resetPassword = async (token, newPassword) => {
   try {
-    const response = await api.post('/users/reset-password', { token, newPassword });
+    const response = await publicApi.post('/users/reset-password', { token, newPassword });
     return response.data;
   } catch (error) {
     throw new Error(error.response?.data?.message || 'Failed to reset password');
@@ -345,10 +348,29 @@ export const resetPassword = async (token, newPassword) => {
 
 export const checkEmailExists = async (email) => {
   try {
-    const response = await api.get('/users/exists', { params: { email } });
+    const response = await publicApi.get('/users/exists', { params: { email } });
     return response.data;
   } catch (error) {
     return false;
+  }
+};
+
+// OTP Verification
+export const verifyOtp = async (email, otp) => {
+  try {
+    const response = await publicApi.post('/users/verify-otp', { email, otp });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Invalid or expired OTP');
+  }
+};
+
+export const resendOtp = async (email) => {
+  try {
+    const response = await publicApi.post('/users/resend-otp', { email });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to resend OTP');
   }
 };
 
@@ -764,5 +786,97 @@ export const deleteProductImage = async (imageId) => {
     await api.delete(`/product-images/${imageId}`);
   } catch (error) {
     throw new Error(error.response?.data?.message || 'Failed to delete product image');
+  }
+};
+
+// ==================== REVIEW API FUNCTIONS ====================
+
+export const getProductReviews = async (productId) => {
+  try {
+    const response = await api.get(`/reviews/product/${productId}`);
+    return response.data;
+  } catch (error) {
+    return [];
+  }
+};
+
+export const getProductRating = async (productId) => {
+  try {
+    const response = await api.get(`/reviews/product/${productId}/rating`);
+    return response.data;
+  } catch (error) {
+    return { averageRating: 0, reviewCount: 0 };
+  }
+};
+
+export const canUserReview = async (userId, productId) => {
+  try {
+    const response = await api.get(`/reviews/product/${productId}/can-review`, {
+      params: { userId }
+    });
+    return response.data;
+  } catch (error) {
+    return { canReview: false, hasReviewed: false };
+  }
+};
+
+export const createReview = async (userId, productId, rating, comment = null) => {
+  try {
+    const response = await api.post('/reviews', { comment }, {
+      params: { userId, productId, rating }
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to create review');
+  }
+};
+
+export const updateReview = async (reviewId, userId, rating, comment) => {
+  try {
+    const response = await api.put(`/reviews/${reviewId}`, { rating, comment }, {
+      params: { userId }
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to update review');
+  }
+};
+
+export const deleteReview = async (reviewId, userId) => {
+  try {
+    await api.delete(`/reviews/${reviewId}`, {
+      params: { userId }
+    });
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to delete review');
+  }
+};
+
+// ==================== ACCOUNT DELETION API FUNCTIONS ====================
+
+export const requestAccountDeletion = async (reason) => {
+  try {
+    const response = await api.post('/users/request-deletion', { reason });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.error || 'Failed to request account deletion');
+  }
+};
+
+export const cancelAccountDeletion = async () => {
+  try {
+    const response = await api.post('/users/cancel-deletion');
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.error || 'Failed to cancel account deletion');
+  }
+};
+
+export const getDeletionStatus = async () => {
+  try {
+    const response = await api.get('/users/deletion-status');
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.error || 'Failed to get deletion status');
   }
 };

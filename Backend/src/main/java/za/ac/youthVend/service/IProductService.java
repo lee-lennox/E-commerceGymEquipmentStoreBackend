@@ -12,4 +12,6 @@ public interface IProductService extends IService<Product, Integer> {
     List<Product> findByName(String name);
 
     List<Product> findByCategoryId(Integer categoryId);
+
+    List<Product> searchByKeyword(String keyword);
 }

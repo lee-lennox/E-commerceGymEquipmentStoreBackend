@@ -4,30 +4,26 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import za.ac.youthVend.domain.Address;
 import za.ac.youthVend.domain.Order;
-import za.ac.youthVend.domain.User;
 import za.ac.youthVend.domain.enums.OrderStatus;
 import za.ac.youthVend.service.AddressService;
-import za.ac.youthVend.service.EmailService;
 import za.ac.youthVend.service.OrderService;
-import za.ac.youthVend.service.UserService;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/orders")
+@RequestMapping("/orders")
 @RequiredArgsConstructor
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"})
 public class OrderController {
 
     private final OrderService orderService;
     private final AddressService addressService;
-    private final UserService userService;
-    private final EmailService emailService;
 
     @GetMapping
     public ResponseEntity<List<Order>> getAllOrders() {
@@ -44,15 +40,21 @@ public class OrderController {
 
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<Order>> getOrdersByUserId(@PathVariable Integer userId) {
-        // More efficient: fetch user first, then get their orders
-        User user = new User();
-        user.setUserId(userId);
-        List<Order> orders = orderService.findByUser(user);
+        List<Order> orders = orderService.findAll().stream()
+                .filter(order -> order.getUser() != null && order.getUser().getUserId().equals(userId))
+                .toList();
         return ResponseEntity.ok(orders);
     }
 
-    @GetMapping("/user/email/{email}")
-    public ResponseEntity<List<Order>> getOrdersByUserEmail(@PathVariable String email) {
+    @GetMapping("/my-orders")
+    public ResponseEntity<List<Order>> getMyOrders() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || 
+            authentication.getName() == null || authentication.getName().equals("anonymousUser")) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        
+        String email = authentication.getName();
         List<Order> orders = orderService.findByUserEmail(email);
         return ResponseEntity.ok(orders);
     }
@@ -77,26 +79,7 @@ public class OrderController {
                     .orElseThrow(() -> new RuntimeException("Address not found"));
             order.setShippingAddress(address);
         }
-        
-        // Ensure user is attached (fetch from DB if needed)
-        if (order.getUser() != null && order.getUser().getUserId() != null) {
-            User user = userService.getUserById(order.getUser().getUserId())
-                    .orElseThrow(() -> new RuntimeException("User not found with id: " + order.getUser().getUserId()));
-            order.setUser(user);
-        }
-        
         Order created = orderService.save(order);
-        
-        // Send order receipt email
-        try {
-            if (created.getUser() != null && created.getUser().getEmail() != null) {
-                emailService.sendOrderReceiptEmail(created);
-            }
-        } catch (Exception e) {
-            // Log error but don't fail the order creation
-            System.err.println("Failed to send order receipt email: " + e.getMessage());
-        }
-        
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
@@ -158,32 +141,5 @@ public class OrderController {
                 "totalAmount", order.getTotalAmount(),
                 "orderStatus", order.getStatus()
         ));
-    }
-
-    /**
-     * Get all orders for the currently authenticated user.
-     * The user is identified via JWT token from the Authorization header.
-     * Users can only see their own orders - no userId or email needs to be passed.
-     *
-     * @return List of orders belonging to the logged-in user
-     */
-    @GetMapping("/my-orders")
-    public ResponseEntity<List<Order>> getMyOrders(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated() || 
-            !(authentication.getPrincipal() instanceof UserDetails userDetails)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        String email = userDetails.getUsername();
-        
-        // Look up the user by email from the database to get their userId
-        Optional<User> userOpt = userService.getUserByEmail(email);
-        if (userOpt.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(List.of());
-        }
-
-        Integer userId = userOpt.get().getUserId();
-        List<Order> orders = orderService.findByUserId(userId);
-        return ResponseEntity.ok(orders);
     }
 }

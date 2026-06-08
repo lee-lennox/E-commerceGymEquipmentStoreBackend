@@ -87,6 +87,15 @@ public class ProductService implements IProductService {
         return productRepository.findByCategory_CategoryId(categoryId);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<Product> searchByKeyword(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return List.of();
+        }
+        return productRepository.searchByKeyword(keyword.trim());
+    }
+
     // Optional: method to create product using factory
     public Product createProduct(String name, String description, BigDecimal price, String sku, Integer stock, Category category) {
         Product product = ProductFactory.createProduct(name, description, price, sku, stock, category);

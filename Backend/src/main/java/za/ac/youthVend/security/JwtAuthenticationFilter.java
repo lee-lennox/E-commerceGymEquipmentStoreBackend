@@ -83,9 +83,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private boolean isPublicEndpoint(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return path.startsWith("/api/auth/") || 
-               path.startsWith("/api/products") && request.getMethod().equals("GET") ||
-               path.startsWith("/api/categories") && request.getMethod().equals("GET") ||
+        // Check both with and without /api prefix since context path may or may not be included
+        return path.startsWith("/api/auth/") || path.startsWith("/auth/") ||
+               path.startsWith("/api/users/register") || path.startsWith("/users/register") ||
+               path.startsWith("/api/users/login") || path.startsWith("/users/login") ||
+               path.startsWith("/api/users/forgot-password") || path.startsWith("/users/forgot-password") ||
+               path.startsWith("/api/users/reset-password") || path.startsWith("/users/reset-password") ||
+               path.startsWith("/api/users/exists") || path.startsWith("/users/exists") ||
+               path.startsWith("/api/users/verify-otp") || path.startsWith("/users/verify-otp") ||
+               path.startsWith("/api/users/resend-otp") || path.startsWith("/users/resend-otp") ||
+               (path.startsWith("/api/products") || path.startsWith("/products")) && request.getMethod().equals("GET") ||
+               (path.startsWith("/api/categories") || path.startsWith("/categories")) && request.getMethod().equals("GET") ||
                path.contains("/images/");
     }
 }

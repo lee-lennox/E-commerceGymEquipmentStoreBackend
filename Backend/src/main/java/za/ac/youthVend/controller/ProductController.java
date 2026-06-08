@@ -19,8 +19,9 @@ import java.util.List;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/products")
+@RequestMapping("/products")
 @RequiredArgsConstructor
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"})
 public class ProductController {
 
     private final ProductService productService;
@@ -56,17 +57,11 @@ public class ProductController {
     }
 
     /**
-     * Search products by name (case-insensitive partial match)
-     * Query parameter: q (search query)
+     * Search products by keyword in name or description
      */
     @GetMapping("/search")
-    public ResponseEntity<List<Product>> searchProducts(@RequestParam(value = "q", required = false) String query) {
-        if (query == null || query.trim().isEmpty()) {
-            // If no query provided, return all products
-            List<Product> products = productService.findAll();
-            return ResponseEntity.ok(products);
-        }
-        List<Product> products = productService.findByName(query.trim());
+    public ResponseEntity<List<Product>> searchProducts(@RequestParam String keyword) {
+        List<Product> products = productService.searchByKeyword(keyword);
         return ResponseEntity.ok(products);
     }
 
@@ -210,49 +205,6 @@ public class ProductController {
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType(contentType))
                     .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
-                    .header(HttpHeaders.CACHE_CONTROL, "max-age=31536000, immutable")
-                    .body(resource);
-        } catch (Exception ex) {
-            return ResponseEntity.internalServerError().build();
-        }
-    }
-
-    /**
-     * Get optimized thumbnail image for faster loading
-     */
-    @GetMapping("/images/thumbnails/{fileName:.+}")
-    public ResponseEntity<Resource> getProductThumbnail(@PathVariable("fileName") String fileName) {
-        try {
-            // Check if thumbnail exists, if not return original image
-            Path filePath;
-            if (fileStorageService.thumbnailExists(fileName)) {
-                filePath = fileStorageService.getThumbnailPath(fileName);
-            } else {
-                filePath = fileStorageService.getFilePath(fileName);
-            }
-            
-            Resource resource = new UrlResource(filePath.toUri());
-
-            if (!resource.exists()) {
-                return ResponseEntity.notFound().build();
-            }
-
-            String contentType = "application/octet-stream";
-            String fileNameLower = fileName.toLowerCase();
-            if (fileNameLower.endsWith(".jpg") || fileNameLower.endsWith(".jpeg")) {
-                contentType = "image/jpeg";
-            } else if (fileNameLower.endsWith(".png")) {
-                contentType = "image/png";
-            } else if (fileNameLower.endsWith(".gif")) {
-                contentType = "image/gif";
-            } else if (fileNameLower.endsWith(".webp")) {
-                contentType = "image/webp";
-            }
-
-            return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
-                    .header(HttpHeaders.CACHE_CONTROL, "max-age=31536000, immutable")
                     .body(resource);
         } catch (Exception ex) {
             return ResponseEntity.internalServerError().build();

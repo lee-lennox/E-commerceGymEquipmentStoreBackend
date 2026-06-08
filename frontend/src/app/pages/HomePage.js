@@ -1,36 +1,16 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { getProducts, getCategories } from '../../services/api';
+import { getProducts } from '../../services/api';
 import { ProductCard } from '../components/ProductCard';
 import { ArrowRight } from 'lucide-react';
 
 export function HomePage() {
   const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
 
-  const categoryLabels = {
-    'all': 'All Products',
-    'free-weights': 'Free Weights',
-    'cardio-equipment': 'Cardio Equipment',
-    'strength-training': 'Strength Training',
-    'accessories': 'Accessories'
-  };
-
   useEffect(() => {
-    loadCategories();
     loadProducts();
   }, []);
-
-  const loadCategories = async () => {
-    try {
-      const data = await getCategories();
-      setCategories(data);
-    } catch (err) {
-      console.error('Failed to load categories:', err);
-    }
-  };
 
   const loadProducts = async () => {
     setIsLoading(true);
@@ -44,9 +24,7 @@ export function HomePage() {
     }
   };
 
-  const filteredProducts = selectedCategory === 'all'
-    ? products.slice(0, 8)
-    : products.filter(p => p.category?.slug === selectedCategory).slice(0, 8);
+  const featuredProducts = products.slice(0, 8);
 
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
@@ -96,12 +74,6 @@ export function HomePage() {
                 Shop Now
                 <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Link>
-              <Link
-                to="/categories"
-                className="px-8 py-4 bg-white/5 backdrop-blur-sm border border-white/10 text-white font-semibold rounded-xl hover:bg-white/10 transition-all hover:border-white/20"
-              >
-                View Categories
-              </Link>
             </div>
           </div>
         </div>
@@ -121,48 +93,21 @@ export function HomePage() {
               Discover our most popular gym equipment, chosen by fitness enthusiasts nationwide
             </p>
           </div>
-
-          {/* Category Pills - Charcoal Theme */}
-          <div className="flex flex-wrap gap-3 mb-12 justify-center">
-            <button
-              onClick={() => setSelectedCategory('all')}
-              className={`px-6 py-3 rounded-full font-medium transition-all duration-200 ${
-                selectedCategory === 'all'
-                  ? 'bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-lg shadow-gray-500/20'
-                  : 'bg-gray-100 text-gray-600 border border-transparent hover:bg-gray-200'
-              }`}
-            >
-              All Products
-            </button>
-            {Array.isArray(categories) && categories.map((category) => (
-              <button
-                key={category.categoryId}
-                onClick={() => setSelectedCategory(category.slug)}
-                className={`px-6 py-3 rounded-full font-medium transition-all duration-200 ${
-                  selectedCategory === category.slug
-                    ? 'bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-lg shadow-gray-500/20'
-                    : 'bg-gray-100 text-gray-600 border border-transparent hover:bg-gray-200'
-                }`}
-              >
-                {categoryLabels[category.slug] || category.name}
-              </button>
-            ))}
-          </div>
           
           {/* Products Grid */}
           {isLoading ? (
             <div className="flex items-center justify-center py-16">
               <div className="w-12 h-12 border-2 border-gray-200 border-t-gray-800 rounded-full animate-spin"></div>
             </div>
-          ) : filteredProducts.length > 0 ? (
+          ) : featuredProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredProducts.map((product) => (
+              {featuredProducts.map((product) => (
                 <ProductCard key={product.productId} product={product} />
               ))}
             </div>
           ) : (
             <div className="text-center py-16">
-              <p className="text-gray-500 text-lg">No products found in this category</p>
+              <p className="text-gray-500 text-lg">No products found</p>
             </div>
           )}
 

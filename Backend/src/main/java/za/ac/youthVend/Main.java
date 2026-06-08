@@ -2,14 +2,10 @@ package za.ac.youthVend;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
-/**
- * Main application entry point.
- * EnableAsync allows asynchronous email sending to avoid blocking the main application flow.
- */
 @SpringBootApplication
-@EnableAsync
+@EnableScheduling
 public class Main {
 
     public static void main(String[] args) {

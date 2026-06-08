@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Bell, ShoppingCart, Settings, ChevronDown, Menu, X, Sun, Moon } from 'lucide-react';
+import { Search, ShoppingCart, Settings, ChevronDown, Menu, X } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useState, useEffect, useRef } from 'react';
 
@@ -11,27 +11,15 @@ export function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    const saved = localStorage.getItem('darkMode');
-    return saved ? JSON.parse(saved) : false;
-  });
   const profileDropdownRef = useRef(null);
   const searchInputRef = useRef(null);
   const mobileMenuRef = useRef(null);
 
   useEffect(() => {
-    // Apply dark mode class to document
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('darkMode', JSON.stringify(isDarkMode));
-  }, [isDarkMode]);
-
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
-  };
+    // Always apply dark mode class to document
+    document.documentElement.classList.add('dark');
+    localStorage.setItem('darkMode', 'true');
+  }, []);
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -192,12 +180,6 @@ export function Header() {
               </Link>
             )}
             
-            {/* Notifications */}
-            <button className="p-2 text-muted-foreground dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 rounded-lg transition-all relative" aria-label="Notifications">
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full shadow-lg shadow-red-500/50"></span>
-            </button>
-            
             {/* Cart */}
             <button 
               onClick={() => setIsCartOpen(true)}
@@ -301,15 +283,6 @@ export function Header() {
                 </Link>
               </div>
             )}
-
-            {/* Theme Toggle */}
-            <button
-              onClick={toggleDarkMode}
-              className="p-2 text-muted-foreground dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 rounded-lg transition-all"
-              aria-label="Toggle theme"
-            >
-              {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </button>
 
             {/* Mobile Menu Button */}
             <button

@@ -45,6 +45,10 @@ public class User {
     @Column(nullable = false)
     private Boolean enabled = true;
 
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean emailVerified = false;
+
 //    // Optional fields used in factory/tests
 //    private String companyName;
 

@@ -70,15 +70,6 @@ export function Footer() {
               </li>
               <li>
                 <Link 
-                  to="/categories" 
-                  className="flex items-center gap-2 text-muted-foreground dark:text-gray-500 dark:hover:text-white transition-colors duration-200 group"
-                >
-                  <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400" />
-                  Categories
-                </Link>
-              </li>
-              <li>
-                <Link 
                   to="/about" 
                   className="flex items-center gap-2 text-muted-foreground dark:text-gray-500 dark:hover:text-white transition-colors duration-200 group"
                 >

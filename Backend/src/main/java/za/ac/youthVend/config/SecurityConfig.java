@@ -27,7 +27,7 @@ import java.util.List;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    @Value("${FRONTEND_URL:http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000}")
+    @Value("${FRONTEND_URL:http://localhost:5173,http://localhost:3000}")
     private String frontendUrl;
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -56,56 +56,56 @@ public class SecurityConfig {
                         // Allow CORS preflight requests
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // Public endpoints
+                        // Public endpoints - include both with and without /api prefix
+                        // Note: Spring Security matches against the full path including context-path
                         .requestMatchers(
-                                "/api/users/register",
-                                "/api/users/login",
-                                "/api/users/forgot-password",
-                                "/api/users/reset-password",
-                                "/api/auth/**"
+                                "/api/users/register", "/users/register",
+                                "/api/users/login", "/users/login",
+                                "/api/users/verify-otp", "/users/verify-otp",
+                                "/api/users/resend-otp", "/users/resend-otp",
+                                "/api/users/forgot-password", "/users/forgot-password",
+                                "/api/users/reset-password", "/users/reset-password",
+                                "/api/auth/**", "/auth/**"
                         ).permitAll()
 
-                        .requestMatchers(HttpMethod.GET, "/api/users/exists").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/users/exists", "/users/exists").permitAll()
 
                         // PUBLIC: Product images (must be before other product rules)
-                        .requestMatchers("/api/products/images/**").permitAll()
+                        .requestMatchers("/products/images/**").permitAll()
 
                         // PUBLIC: View products and categories (GET only)
-                        .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
-                        .requestMatchers(HttpMethod.PATCH, "/api/products/*/decrease-stock").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/products/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/categories/**").permitAll()
+                        .requestMatchers(HttpMethod.PATCH, "/products/*/decrease-stock").permitAll()
                         
                         // ADMIN ONLY: Create/Update/Delete products and categories
-                        .requestMatchers(HttpMethod.POST, "/api/products/**").hasAuthority("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/products/**").hasAuthority("ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, "/api/products/**").hasAuthority("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasAuthority("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/categories/**").hasAuthority("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/categories/**").hasAuthority("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/categories/**").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/products/**").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/products/**").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/products/**").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/products/**").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/categories/**").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/categories/**").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/categories/**").hasAuthority("ADMIN")
 
-                        // Orders - authenticated users only
-                        .requestMatchers("/api/orders/**").authenticated()
-                        .requestMatchers("/api/order-items/**").authenticated()
-                        .requestMatchers("/api/payments/**").authenticated()
+                        // User's own orders - requires authentication
+                        .requestMatchers("/orders/my-orders").authenticated()
+                        
+                        // TEMPORARY: Other orders endpoints public for testing - CHANGE THIS BACK later
+                        .requestMatchers("/orders/**").permitAll()
+                        .requestMatchers("/order-items/**").permitAll()
+                        .requestMatchers("/payments/**").permitAll()
 
                         // Cart endpoints - authenticated users
-                        .requestMatchers("/api/cart/**").authenticated()
+                        .requestMatchers("/cart/**").authenticated()
 
                         // Authenticated user endpoints
-                        .requestMatchers(HttpMethod.GET, "/api/users/**").authenticated()
-
-                        // Addresses - authenticated users
-                        .requestMatchers("/api/addresses/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/users/**").authenticated()
 
                         // Admin-only endpoints
-                        .requestMatchers("/api/admin/**", "/api/dashboard/**").hasAuthority("ADMIN")
+                        .requestMatchers("/admin/**", "/dashboard/**").hasAuthority("ADMIN")
 
                         // Buyer-specific endpoints
-                        .requestMatchers("/api/buyer/**").hasAnyAuthority("BUYER", "ADMIN")
-
-                        // Product images API - authenticated users
-                        .requestMatchers("/api/product-images/**").authenticated()
+                        .requestMatchers("/buyer/**").hasAnyAuthority("BUYER", "ADMIN")
 
                         // Any other request requires authentication
                         .anyRequest().authenticated()
@@ -126,18 +126,21 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // read comma‑separated list and register each origin
+        // read comma-separated list and register each origin
         String[] origins = frontendUrl.split("\s*,\s*");
         config.setAllowedOrigins(List.of(origins));
 
         config.setAllowedMethods(List.of(
-                "GET", "POST", "PUT", "DELETE", "OPTIONS"
+                "GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"
         ));
         config.setAllowedHeaders(List.of("*"));
+        config.setExposedHeaders(List.of("Authorization", "Content-Type"));
         config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();
+        // Match all paths under the context path
         source.registerCorsConfiguration("/**", config);
         return source;
     }

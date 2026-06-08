@@ -10,6 +10,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 @Entity
 @Table(name = "orders")
 @Getter
@@ -39,10 +41,10 @@ public class Order {
     private OrderStatus status;
 
     @CreationTimestamp
+    @JsonProperty("orderDate")
     private LocalDateTime createdAt;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
     @Builder.Default
-    @com.fasterxml.jackson.annotation.JsonIgnore
-    private List<OrderItem> items = new ArrayList<>();
+    private List<OrderItem> orderItems = new ArrayList<>();
 }

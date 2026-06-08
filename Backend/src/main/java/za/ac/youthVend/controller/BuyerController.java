@@ -9,7 +9,8 @@ import za.ac.youthVend.service.UserService;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/buyer")
+@RequestMapping("/buyer")
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"})
 @PreAuthorize("hasAnyAuthority('BUYER', 'ADMIN')")
 public class BuyerController {
 

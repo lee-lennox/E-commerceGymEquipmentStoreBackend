@@ -50,7 +50,7 @@ class OrderFactoryTest {
 
         assertNotNull(order);
         assertEquals(user, order.getUser());
-        assertEquals(1, order.getItems().size());
+        assertEquals(1, order.getOrderItems().size());
         assertEquals(totalAmount, order.getTotalAmount());
         assertEquals(OrderStatus.NEW, order.getStatus());
     }
