@@ -165,6 +165,21 @@ E-commerceGymEquipmentStore/
 - `GET /api/reviews/product/{productId}` - Get product reviews
 - `POST /api/reviews` - Submit a review
 
+## Documentation
+
+Comprehensive project documentation is available in the [`docs/`](docs/) folder:
+
+| Document | Description | Link |
+|----------|-------------|------|
+| **PRD** | Product Requirements Document | [View PRD](docs/PRD.md) |
+| **App Flow** | User journeys & navigation flows | [View App Flow](docs/APP_FLOW.md) |
+| **Tech Stack** | Technology overview & architecture | [View Tech Stack](docs/TECH_STACK.md) |
+| **Design Guidelines** | UI/UX standards & component specs | [View Design Guidelines](docs/DESIGN_GUIDELINES.md) |
+| **Database Schema** | PostgreSQL schema & entity definitions | [View Database Schema](docs/DATABASE_SCHEMA.md) |
+| **UML** | Use cases, class diagrams, sequence diagrams | [View UML](docs/UML.md) |
+| **ERD** | Entity Relationship Diagram | [View ERD](docs/ERD.md) |
+| **Implementation Plan** | 12-week development roadmap | [View Implementation Plan](docs/IMPLEMENTATION_PLAN.md) |
+
 ## License
 
 This project is part of an E-commerce Gym Equipment system.
